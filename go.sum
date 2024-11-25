@@ -1,0 +1,4 @@
+github.com/kamuridesu/gomechan v0.0.0-20241105115731-160206061684 h1:WB7bhbZTzh7deKgn9rGBRmEeT4nuLJX1kOhKd8U14sE=
+github.com/kamuridesu/gomechan v0.0.0-20241105115731-160206061684/go.mod h1:GOBd108vUYvr6LzN/yD9Ga4W0OBT6Uw50nstFEd1uUQ=
+github.com/mattn/go-sqlite3 v1.14.24 h1:tpSp2G2KyMnnQu99ngJ47EIkWVmliIizyZBfPrBWDRM=
+github.com/mattn/go-sqlite3 v1.14.24/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
