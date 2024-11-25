@@ -12,7 +12,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . /workspace/
-RUN go build -ldflags='-s -w -extldflags "-static"' -o "ip-syncer"
+RUN go build -ldflags='-s -w' -o "ip-syncer"
 
 FROM scratch AS deploy
 

@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	if os.Getenv("CLIENT") == "true" {
+	if os.Getenv("CLIENT") != "" {
 		client.Start()
 		return
 	}
