@@ -1,6 +1,8 @@
 package database
 
 import (
+	"errors"
+
 	"github.com/kamuridesu/ip-syncer/internal/shared"
 )
 
@@ -12,7 +14,7 @@ type Database interface {
 	Update(info *shared.IPInfo) error
 	Delete(id string) error
 	DeleteByName(name string) error
-	GetById(id string) (*shared.IPInfo, error)
+	GetByIP(ip string) (*shared.IPInfo, error)
 	GetByName(name string) (*shared.IPInfo, error)
 	GetAll() (*[]shared.IPInfo, error)
 }
@@ -22,6 +24,6 @@ func New(dbType string, info string) (Database, error) {
 	case "sqlite":
 		return NewSQLite(info)
 	default:
-		return nil, nil
+		return nil, errors.New("unsupported database type")
 	}
 }

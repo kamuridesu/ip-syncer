@@ -1,0 +1,19 @@
+services:
+  server:
+    build: .
+    restart: always
+    container_name: sync-server
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTH_KEY=test
+  client:
+    build: .
+    restart: always
+    container_name: sync-client
+    environment:
+      - AUTH_KEY=test
+      - SERVER_ENDPOINT=http://server:8080
+      - CLIENT=true
+    depends_on:
+      - server

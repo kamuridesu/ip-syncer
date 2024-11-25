@@ -19,7 +19,12 @@ func NewSQLite(filename string) (*SQLite, error) {
 		slog.Error(fmt.Sprintf("Failed to open database: %s", err.Error()))
 		return nil, err
 	}
-	return &SQLite{DB: db}, nil
+	sqlDb := SQLite{DB: db}
+	err = sqlDb.CreateIfNotexists()
+	if err != nil {
+		return nil, err
+	}
+	return &sqlDb, nil
 }
 
 func (s *SQLite) Connect() error {
@@ -34,9 +39,8 @@ func (s *SQLite) CreateIfNotexists() error {
 	_, err := s.DB.Exec(`CREATE TABLE IF NOT EXISTS "ips" (
 		"id" INTEGER PRIMARY KEY AUTOINCREMENT, 
 		"ip" TEXT, 
-		"name" TEXT, 
-		"authkey" TEXT, changed BOOLEAN)
-	`)
+		"name" TEXT
+	)`)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to create table: %s", err.Error()))
 		return err
@@ -47,10 +51,8 @@ func (s *SQLite) CreateIfNotexists() error {
 func (s *SQLite) Insert(info *shared.IPInfo) error {
 	_, err := s.DB.Exec(`INSERT INTO ips (
 		ip,
-		name,
-		authkey,
-		changed
-	) VALUES (?, ?, ?, ?)`, info.IP, info.Name, info.Authkey, info.Changed)
+		name
+	) VALUES (?, ?)`, info.IP, info.Name)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to insert record: %s", err.Error()))
 		return err
@@ -61,10 +63,8 @@ func (s *SQLite) Insert(info *shared.IPInfo) error {
 func (s *SQLite) Update(info *shared.IPInfo) error {
 	_, err := s.DB.Exec(`UPDATE ips SET
 		ip = ?,
-		name = ?,
-		authkey = ?,
-		changed = ?
-	WHERE id = ?`, info.IP, info.Name, info.Authkey, info.Changed)
+		name = ?
+	WHERE id = ?`, info.IP, info.Name)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to update record: %s", err.Error()))
 		return err
@@ -90,10 +90,13 @@ func (s *SQLite) DeleteByName(name string) error {
 	return nil
 }
 
-func (s *SQLite) GetById(id string) (*shared.IPInfo, error) {
+func (s *SQLite) GetByIP(ip string) (*shared.IPInfo, error) {
 	var info shared.IPInfo
-	err := s.DB.QueryRow(`SELECT * FROM ips WHERE id = ?`, id).Scan(&info.IP, &info.Name, &info.Authkey, &info.Changed)
+	err := s.DB.QueryRow(`SELECT ip, name FROM ips WHERE ip = ?`, ip).Scan(&info.IP, &info.Name)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		slog.Error(fmt.Sprintf("Failed to get record: %s", err.Error()))
 		return nil, err
 	}
@@ -102,8 +105,11 @@ func (s *SQLite) GetById(id string) (*shared.IPInfo, error) {
 
 func (s *SQLite) GetByName(name string) (*shared.IPInfo, error) {
 	var info shared.IPInfo
-	err := s.DB.QueryRow(`SELECT * FROM ips WHERE name = ?`, name).Scan(&info.IP, &info.Name, &info.Authkey, &info.Changed)
+	err := s.DB.QueryRow(`SELECT ip, name FROM ips WHERE name = ?`, name).Scan(&info.IP, &info.Name)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		slog.Error(fmt.Sprintf("Failed to get record: %s", err.Error()))
 		return nil, err
 	}
@@ -111,7 +117,7 @@ func (s *SQLite) GetByName(name string) (*shared.IPInfo, error) {
 }
 
 func (s *SQLite) GetAll() (*[]shared.IPInfo, error) {
-	rows, err := s.DB.Query(`SELECT * FROM ips`)
+	rows, err := s.DB.Query(`SELECT ip, name FROM ips`)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to get records: %s", err.Error()))
 		return nil, err
@@ -121,7 +127,7 @@ func (s *SQLite) GetAll() (*[]shared.IPInfo, error) {
 	var infos []shared.IPInfo
 	for rows.Next() {
 		var info shared.IPInfo
-		err := rows.Scan(&info.IP, &info.Name, &info.Authkey, &info.Changed)
+		err := rows.Scan(&info.IP, &info.Name)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to scan record: %s", err.Error()))
 			return nil, err
