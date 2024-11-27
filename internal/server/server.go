@@ -9,7 +9,7 @@ import (
 
 	"github.com/kamuridesu/gomechan/core/response"
 	db "github.com/kamuridesu/ip-syncer/internal/database"
-	h "github.com/kamuridesu/ip-syncer/internal/hosts"
+	"github.com/kamuridesu/ip-syncer/internal/hosts"
 	"github.com/kamuridesu/ip-syncer/internal/shared"
 )
 
@@ -19,7 +19,6 @@ type IHandler interface {
 
 type Handler struct {
 	Database db.Database
-	Hosts    *h.Hosts
 }
 
 func NewHandler(dbType string, info string) (*Handler, error) {
@@ -27,23 +26,33 @@ func NewHandler(dbType string, info string) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	hosts, err := h.ReadHostsFile()
-	if err != nil {
-		return nil, err
+	return &Handler{Database: database}, nil
+}
+
+func validateRequest(r *http.Request, responseW *response.ResponseWriter) error {
+	if r.Method != http.MethodPost {
+		responseW.AsJson(http.StatusMethodNotAllowed, map[string]any{"error": "Method Not Allowed"})
+		return fmt.Errorf("method Not Allowed")
 	}
-	return &Handler{Database: database, Hosts: hosts}, nil
+
+	if r.Header.Get("Authorization") != shared.Info.AuthKey {
+		responseW.AsJson(http.StatusUnauthorized, map[string]any{"error": "Unauthorized"})
+		return fmt.Errorf("nnauthorized")
+	}
+	return nil
 }
 
 func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	responseW := response.New(&w, r)
 
-	if r.Method != http.MethodPost {
-		responseW.AsJson(http.StatusMethodNotAllowed, map[string]any{"error": "Method Not Allowed"})
+	if err := validateRequest(r, &responseW); err != nil {
 		return
 	}
 
-	if r.Header.Get("Authorization") != shared.Info.AuthKey {
-		responseW.AsJson(http.StatusUnauthorized, map[string]any{"error": "Unauthorized"})
+	hostsFile, err := hosts.ReadHostsFile()
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to read hosts file: %s", err))
+		responseW.AsJson(http.StatusInternalServerError, map[string]any{"error": "Internal Server Error"})
 		return
 	}
 
@@ -78,7 +87,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Hosts.AddOrReplaceHost(info.IP, info.Name).Save()
+		hostsFile.AddOrReplaceHost(info.IP, info.Name).Save()
 
 		err = h.Database.Update(info)
 		if err != nil {
@@ -97,7 +106,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		responseW.AsJson(http.StatusInternalServerError, map[string]any{"error": "Internal Server Error"})
 		return
 	}
-	h.Hosts.AddOrReplaceHost(info.IP, info.Name).Save()
+	hostsFile.AddOrReplaceHost(info.IP, info.Name).Save()
 
 	responseW.AsJson(http.StatusOK, map[string]any{"message": "IP added"})
 
