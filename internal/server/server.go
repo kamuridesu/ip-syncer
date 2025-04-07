@@ -8,25 +8,17 @@ import (
 	"strings"
 
 	"github.com/kamuridesu/gomechan/core/response"
-	db "github.com/kamuridesu/ip-syncer/internal/database"
 	"github.com/kamuridesu/ip-syncer/internal/hosts"
 	"github.com/kamuridesu/ip-syncer/internal/shared"
 )
 
-type IHandler interface {
-	Handle(w http.ResponseWriter, r *http.Request)
-}
-
 type Handler struct {
-	Database db.Database
+	hosts *hosts.Hosts
 }
 
-func NewHandler(dbType string, info string) (*Handler, error) {
-	database, err := db.New(dbType, info)
-	if err != nil {
-		return nil, err
-	}
-	return &Handler{Database: database}, nil
+func NewHandler(hosts *hosts.Hosts) (*Handler, error) {
+
+	return &Handler{hosts: hosts}, nil
 }
 
 func validateRequest(r *http.Request, responseW *response.ResponseWriter) error {
@@ -37,7 +29,7 @@ func validateRequest(r *http.Request, responseW *response.ResponseWriter) error 
 
 	if r.Header.Get("Authorization") != shared.Info.AuthKey {
 		responseW.AsJson(http.StatusUnauthorized, map[string]any{"error": "Unauthorized"})
-		return fmt.Errorf("nnauthorized")
+		return fmt.Errorf("unauthorized")
 	}
 	return nil
 }
@@ -46,13 +38,6 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	responseW := response.New(&w, r)
 
 	if err := validateRequest(r, &responseW); err != nil {
-		return
-	}
-
-	hostsFile, err := hosts.ReadHostsFile()
-	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to read hosts file: %s", err))
-		responseW.AsJson(http.StatusInternalServerError, map[string]any{"error": "Internal Server Error"})
 		return
 	}
 
@@ -74,41 +59,15 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	info := shared.NewIPInfo(ipAddr, name)
-	storedInfo, err := h.Database.GetByIP(ipAddr)
+
+	err = h.hosts.AddOrReplaceHost(info.IP, info.Name)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to get record: %s", err))
+		slog.Error(fmt.Sprintf("error saving new ip, err is %s\n", err))
 		responseW.AsJson(http.StatusInternalServerError, map[string]any{"error": "Internal Server Error"})
 		return
 	}
 
-	if storedInfo != nil {
-		if info.Equals(storedInfo) {
-			responseW.AsJson(http.StatusOK, map[string]any{"message": "IP already exists"})
-			return
-		}
-
-		hostsFile.AddOrReplaceHost(info.IP, info.Name).Save()
-
-		err = h.Database.Update(info)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to update record: %s", err))
-			responseW.AsJson(http.StatusInternalServerError, map[string]any{"error": "Internal Server Error"})
-			return
-		}
-
-		responseW.AsJson(http.StatusOK, map[string]any{"message": "IP updated"})
-		return
-	}
-
-	err = h.Database.Insert(info)
-	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to insert record: %s", err))
-		responseW.AsJson(http.StatusInternalServerError, map[string]any{"error": "Internal Server Error"})
-		return
-	}
-	hostsFile.AddOrReplaceHost(info.IP, info.Name).Save()
-
-	responseW.AsJson(http.StatusOK, map[string]any{"message": "IP added"})
+	responseW.AsJson(http.StatusOK, map[string]any{"message": "IP updated"})
 
 }
 

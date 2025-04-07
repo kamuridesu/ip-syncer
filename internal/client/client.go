@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -21,13 +22,14 @@ func SendRequest() error {
 	slog.Info("Sending request")
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("Failed to send request")
+		erro := fmt.Sprintf("Failed to send request: %s\n", err)
+		slog.Error(erro)
 		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("Failed to send request")
+		slog.Error(fmt.Sprintf("Failed to send request, status is: %d\n", resp.StatusCode))
 		return err
 	}
 
@@ -41,9 +43,10 @@ func Start() {
 		go func() {
 			err := SendRequest()
 			if err != nil {
-				slog.Error("Failed to send request")
+				erro := fmt.Sprintf("Failed to send request: %s\n", err)
+				slog.Error(erro)
 			}
 		}()
-		time.Sleep(5 * time.Second)
+		time.Sleep(30 * time.Second)
 	}
 }

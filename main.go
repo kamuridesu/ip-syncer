@@ -1,9 +1,11 @@
 package main
 
 import (
-	"github.com/kamuridesu/ip-syncer/internal/client"
-	"github.com/kamuridesu/ip-syncer/internal/server"
 	"os"
+
+	"github.com/kamuridesu/ip-syncer/internal/client"
+	"github.com/kamuridesu/ip-syncer/internal/hosts"
+	"github.com/kamuridesu/ip-syncer/internal/server"
 )
 
 func main() {
@@ -11,7 +13,12 @@ func main() {
 		client.Start()
 		return
 	}
-	handler, err := server.NewHandler("sqlite", "./data.db")
+	const HostsPath = "/etc/hosts"
+	hostFile, err := hosts.ReadHostsFile(HostsPath)
+	if err != nil {
+		panic(err)
+	}
+	handler, err := server.NewHandler(hostFile)
 	if err != nil {
 		panic(err)
 	}

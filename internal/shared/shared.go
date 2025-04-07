@@ -29,5 +29,13 @@ func NewIPInfo(ip, name string) *IPInfo {
 }
 
 func (i *IPInfo) Equals(other *IPInfo) bool {
+	if other == nil {
+		return false
+	}
+
+	if i.IP == "" || i.Name == "" {
+		return false
+	}
+
 	return i.IP == other.IP && i.Name == other.Name
 }
